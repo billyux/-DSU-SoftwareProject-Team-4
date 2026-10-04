@@ -25,7 +25,7 @@ API_KEY = os.getenv("DATA_GO_KR_KEY")
 
 URL = "https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList"
 DATA_DIR = Path(__file__).parent.parent
-RAW_DIR = DATA_DIR / "raw"
+PROCESSED_DIR = DATA_DIR / "processed"
 BOUNDARY_PATH = DATA_DIR / "sasang_boundary.json"
 
 RADIUS_DEG_LAT = 0.0045   # 약 500m
@@ -138,8 +138,8 @@ def main():
         "citycode": "도시코드",
     })
 
-    RAW_DIR.mkdir(exist_ok=True)
-    out_path = RAW_DIR / "사상구_버스정류소.csv"
+    PROCESSED_DIR.mkdir(exist_ok=True)
+    out_path = PROCESSED_DIR / "사상구_버스정류소.csv"
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     print(f"완료: {len(df)}개 정류소 저장 -> {out_path}")
 
