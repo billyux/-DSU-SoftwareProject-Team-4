@@ -92,8 +92,8 @@ export default function App() {
         <AdminPage />
       ) : (
         <div className="max-w-5xl mx-auto p-4 space-y-4">
-          <ReportPage persona={persona} onPersonaChange={setPersona} onLocate={setFocusPoint} />
-          <SafetyMapPage persona={persona} focusPoint={focusPoint} />
+          <ReportPage onLocate={setFocusPoint} />
+          <SafetyMapPage persona={persona} onPersonaChange={setPersona} focusPoint={focusPoint} />
         </div>
       )}
     </div>

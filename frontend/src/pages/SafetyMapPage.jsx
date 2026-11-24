@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchNearbyFacilities } from "../api/facilities.js";
 import { fetchScoreByPoint } from "../api/score.js";
+import { PERSONAS, PERSONA_LABELS } from "../api/weights.js";
 import { getRadiusLimit, RADIUS_MIN, RADIUS_STEP } from "../lib/settings.js";
 import { loadNaverSdk } from "../lib/naverMaps.js";
 
@@ -23,6 +24,8 @@ const SCORE_CATEGORY_LABELS = {
   생필품: "생필품",
   버스: "버스",
   지하철: "지하철",
+  교육: "교육(학교)",
+  노인복지: "노인복지",
 };
 
 function makeDotIcon(naver, color) {
@@ -32,7 +35,7 @@ function makeDotIcon(naver, color) {
   };
 }
 
-export default function SafetyMapPage({ focusPoint, persona } = {}) {
+export default function SafetyMapPage({ focusPoint, persona, onPersonaChange } = {}) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const naverRef = useRef(null);
@@ -257,6 +260,20 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
               <span>{radiusLimit}m</span>
             </div>
 
+            <div className="flex flex-col gap-1.5">
+              {PERSONAS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => onPersonaChange?.(p)}
+                  className={`w-full px-3 py-1.5 rounded-lg text-sm ${
+                    persona === p ? "bg-blue-600 text-white" : "bg-gray-100"
+                  }`}
+                >
+                  {PERSONA_LABELS[p]}
+                </button>
+              ))}
+            </div>
+
             <div className="pt-3 border-t space-y-1 text-xs text-gray-600">
               {Object.entries(CATEGORY_COLORS).map(([category, color]) => (
                 <div key={category} className="flex items-center gap-2">
@@ -275,12 +292,13 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
           {score && (
             <div className="space-y-3">
               <div className="flex items-baseline justify-between">
-                <span className="text-sm text-gray-500">[{persona}] 정주여건 점수</span>
+                <span className="text-sm text-gray-500">[{PERSONA_LABELS[persona]}] 정주여건 점수</span>
                 <span className="text-3xl font-bold">{score.total_score}점</span>
               </div>
               <div className="space-y-2">
                 {score.categories
-                  .filter((c) => c.score_category !== "의료_종합병원")
+                  // 종합병원은 의원급과 합산되고, 가중치 0인 카테고리는 이 페르소나 계산에 안 들어가므로 숨김
+                  .filter((c) => c.score_category !== "의료_종합병원" && c.category_weight > 0)
                   .map((c) => (
                     <div key={c.score_category} className="flex items-center gap-2">
                       <span className="w-24 text-sm text-gray-600">

@@ -8,6 +8,7 @@ import {
 } from "../lib/settings.js";
 import {
   PERSONAS,
+  PERSONA_LABELS,
   fetchCategoryParams,
   updateCategoryParam,
   fetchPersonaCategoryWeights,
@@ -28,7 +29,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">관리자 메뉴</h1>
 
       <div className="p-4 rounded-lg border space-y-3">
@@ -87,7 +88,8 @@ function WeightsEditor() {
       .catch((e) => setError(e.message));
   }, [persona]);
 
-  const weightSum = categoryWeights.reduce((sum, c) => sum + c.category_weight, 0);
+  // 입력 중인 값은 문자열이라(빈 칸 포함) 숫자로 바꿔서 더한다 — 그냥 더하면 문자열 이어붙이기가 되어 화면이 멈춤
+  const weightSum = categoryWeights.reduce((sum, c) => sum + (Number(c.category_weight) || 0), 0);
 
   function handleParamInput(scoreCategory, field, value) {
     setCategoryParams((prev) =>
@@ -174,15 +176,23 @@ function WeightsEditor() {
               persona === p ? "bg-blue-600 text-white" : "bg-gray-100"
             }`}
           >
-            {p}
+            {PERSONA_LABELS[p]}
           </button>
         ))}
       </div>
 
-      <p className={`text-sm ${Math.abs(weightSum - 1) > 0.01 ? "text-amber-600" : "text-gray-500"}`}>
-        [{persona}] 카테고리 가중치 합계: {weightSum.toFixed(2)}{" "}
-        {Math.abs(weightSum - 1) > 0.01 && "(1.00이 되도록 맞춰주세요)"}
-      </p>
+      {Math.abs(weightSum - 1) > 0.01 ? (
+        <div className="p-3 rounded-lg border-2 border-red-500 bg-red-50 text-red-700 text-sm space-y-1">
+          <p className="font-bold">
+            ⚠ [{PERSONA_LABELS[persona]}] 카테고리 가중치 합계가 {weightSum.toFixed(2)}입니다. 1.00이 되도록 맞춰주세요.
+          </p>
+          <p>합이 1이 아니면 점수가 그만큼 부풀거나 줄어듭니다 (예: 합 1.20 → 최대 120점).</p>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500">
+          [{PERSONA_LABELS[persona]}] 카테고리 가중치 합계: {weightSum.toFixed(2)}
+        </p>
+      )}
 
       <div className="space-y-4">
         {categoryWeights.map((cw) => {
@@ -197,9 +207,9 @@ function WeightsEditor() {
                   <span className="text-xs text-gray-400">저장 중...</span>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-3 text-sm items-end">
                 <label className="space-y-1">
-                  <span className="text-gray-500 block">[{persona}] 카테고리 가중치 (W_c)</span>
+                  <span className="text-gray-500 block">가중치 (W_c, 페르소나별)</span>
                   <input
                     type="number"
                     step="0.01"
@@ -235,7 +245,7 @@ function WeightsEditor() {
 
               {typesByCategory[cw.score_category]?.length > 0 && (
                 <div className="pt-2 space-y-1">
-                  <span className="text-xs text-gray-500">[{persona}] 시설 유형별 가중치 (wᵢ)</span>
+                  <span className="text-xs text-gray-500">[{PERSONA_LABELS[persona]}] 시설 유형별 가중치 (wᵢ)</span>
                   {typesByCategory[cw.score_category].map((f) => (
                     <div key={f.facility_type} className="flex items-center gap-2 text-sm">
                       <span className="flex-1">{f.facility_type}</span>

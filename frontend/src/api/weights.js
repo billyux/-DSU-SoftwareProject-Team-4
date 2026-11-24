@@ -3,6 +3,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000
 
 export const PERSONAS = ["개인", "가족", "노인"];
 
+// PERSONAS 값은 DB 가중치 테이블·API의 키라서 바꾸면 안 되고, 화면에는 이 이름으로 보여준다
+export const PERSONA_LABELS = {
+  개인: "개인/무자녀 가구",
+  가족: "유자녀 가구",
+  노인: "고령 가구",
+};
+
 async function handle(res, errorMessage) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

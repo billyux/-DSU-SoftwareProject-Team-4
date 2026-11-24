@@ -1,10 +1,9 @@
 import { useState } from "react";
 import SearchBar from "../components/SearchBar.jsx";
 import { fetchGeocode } from "../api/geocode.js";
-import { PERSONAS } from "../api/weights.js";
 
-// 주소 검색 + 페르소나 선택만 담당. 점수·시설 결과는 SafetyMapPage에서 지도와 함께 한 번에 보여준다.
-export default function ReportPage({ persona, onPersonaChange, onLocate } = {}) {
+// 주소 검색만 담당. 페르소나 선택·점수·시설 결과는 SafetyMapPage에서 지도와 함께 보여준다.
+export default function ReportPage({ onLocate } = {}) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,20 +23,6 @@ export default function ReportPage({ persona, onPersonaChange, onLocate } = {}) 
   return (
     <div className="max-w-2xl mx-auto space-y-3">
       <SearchBar onSearch={handleSearch} />
-
-      <div className="flex gap-2 justify-center">
-        {PERSONAS.map((p) => (
-          <button
-            key={p}
-            onClick={() => onPersonaChange?.(p)}
-            className={`px-3 py-1.5 rounded-lg text-sm ${
-              persona === p ? "bg-blue-600 text-white" : "bg-gray-100"
-            }`}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
 
       {loading && <p className="text-sm text-gray-500 text-center">위치 찾는 중...</p>}
       {error && <p className="text-red-600 text-center">{error}</p>}
