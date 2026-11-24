@@ -236,9 +236,10 @@ export default function SafetyMapPage({ focusPoint, persona, onPersonaChange } =
       )}
 
       <div className="flex flex-col gap-4 md:flex-row">
+        {/* 모바일(세로 배치)에서 flex-1을 쓰면 기본 높이가 0이 돼서 지도가 안 보임 — 가로 배치(md)에서만 flex-1 */}
         <div
           ref={mapContainerRef}
-          className="h-[420px] flex-1 overflow-hidden rounded-2xl border border-slate-200 shadow-sm"
+          className="h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-sm md:w-auto md:flex-1"
         />
 
         <div className="w-full shrink-0 space-y-3 self-start md:w-56">
