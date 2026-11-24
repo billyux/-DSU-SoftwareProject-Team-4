@@ -12,8 +12,18 @@
 2. standardize()로 컬럼명을 공통 스키마로 맞춘 DataFrame을 만든다
 3. main()의 SOURCES 리스트에 그 처리 결과를 추가한다
 """
-import pandas as pd
+import sys
 from pathlib import Path
+
+import pandas as pd
+
+# 분류 규칙은 백엔드의 관리자 즉시 최신화 기능과 공유한다
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "backend"))
+from app.services.facility_classification import (  # noqa: E402
+    STORE_CATEGORY_MAP,
+    hospital_facility_type,
+    store_facility_type,
+)
 
 RAW_DIR = Path(__file__).parent.parent / "raw"
 PROCESSED_DIR = Path(__file__).parent.parent / "processed"
@@ -62,24 +72,8 @@ def standardize(
     return result
 
 
-# 상가업소정보의 업종대분류명(indsLclsNm) -> 우리 스키마 매핑.
-# 매핑에 없는 대분류(수리·개인, 과학·기술, 교육, 부동산, 시설관리·임대, 숙박)는 제외.
-STORE_CATEGORY_MAP = {
-    "소매": ("생활편의", "소매"),
-    "보건의료": ("생활편의", "보건의료"),
-    "예술·스포츠": ("생활편의", "문화체육"),
-    "음식": ("음식점", "음식점"),  # 생활편의 점수엔 기본 미포함, 별도 카테고리로 분리
-}
-
-
 STORE_SOURCE = "소상공인시장진흥공단_상가업소정보"
 STORE_MATCH_MAX_M = 100
-
-
-def _store_type(lcls: str, scls: str) -> str:
-    """상가 facility_type은 업종 소분류(편의점, 약국 등)를 쓴다. 단 보건의료는 HIRA 병원 데이터와
-    겹쳐서 점수가 두 번 들어가지 않도록 대분류("보건의료") 그대로 둔다(가중치 표에 없음 -> 점수 제외)."""
-    return STORE_CATEGORY_MAP[lcls][1] if lcls == "보건의료" else scls
 
 
 def standardize_stores(df: pd.DataFrame, source: str) -> pd.DataFrame:
@@ -92,7 +86,7 @@ def standardize_stores(df: pd.DataFrame, source: str) -> pd.DataFrame:
         category, _ = mapping
         rows.append({
             "category": category,
-            "facility_type": _store_type(row["indsLclsNm"], row["indsSclsNm"]),
+            "facility_type": store_facility_type(row["indsLclsNm"], row["indsSclsNm"]),
             "name": row["bizesNm"],
             "latitude": row["lat"],
             "longitude": row["lon"],
@@ -140,34 +134,9 @@ def attach_store_subtypes(stores: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
 
     result = stores.copy()
     for i, row in best.iterrows():
-        result.at[i, "facility_type"] = _store_type(row["indsLclsNm"], row["indsSclsNm"])
+        result.at[i, "facility_type"] = store_facility_type(row["indsLclsNm"], row["indsSclsNm"])
     print(f"  소분류 매칭: {len(best)}/{len(stores)}건 (못 찾은 {len(stores) - len(best)}건은 기존 분류 유지)")
     return result
-
-
-# HIRA 병원정보의 종별 -> facility_type. 상가 업종 소분류와 같은 이름을 써서 가중치 표를 공유한다
-HOSPITAL_TYPE_MAP = {"병원": "일반병원"}
-
-# 의원은 종별만으로 진료과를 알 수 없어서 이름으로 판별 (위에서부터 먼저 맞는 것)
-CLINIC_NAME_RULES = [
-    (("내과", "소아", "가정의학"), "내과/소아과 의원"),
-    (("피부", "비뇨"), "피부/비뇨기과 의원"),
-    (("성형",), "성형외과 의원"),
-    (("이비인후",), "이비인후과 의원"),
-    (("안과",), "안과 의원"),
-    (("산부인과", "여성의원"), "산부인과 의원"),
-    (("정신", "신경과"), "신경/정신과 의원"),
-    (("외과",), "외과 의원"),
-]
-
-
-def hospital_facility_type(kind: str, name: str) -> str:
-    if kind != "의원":
-        return HOSPITAL_TYPE_MAP.get(kind, kind)
-    for keywords, facility_type in CLINIC_NAME_RULES:
-        if any(k in name for k in keywords):
-            return facility_type
-    return "기타 의원"
 
 
 def _reuse_processed(previous: pd.DataFrame | None, source: str, label: str) -> pd.DataFrame | None:

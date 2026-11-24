@@ -13,6 +13,7 @@ export default function App() {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState(null);
+  const [adminPassword, setAdminPassword] = useState("");
   const [focusPoint, setFocusPoint] = useState(null);
   const [persona, setPersona] = useState(PERSONAS[0]);
 
@@ -25,6 +26,8 @@ export default function App() {
   function handleAdminSubmit(e) {
     e.preventDefault();
     if (password === ADMIN_PASSWORD) {
+      // 데이터 최신화처럼 DB를 바꾸는 요청은 서버에서 이 암호를 다시 확인한다
+      setAdminPassword(password);
       setView("admin");
       setShowPasswordPrompt(false);
     } else {
@@ -99,7 +102,7 @@ export default function App() {
       )}
 
       {view === "admin" ? (
-        <AdminPage />
+        <AdminPage adminPassword={adminPassword} />
       ) : (
         <main className="mx-auto max-w-5xl space-y-5 px-4 py-6">
           <ReportPage onLocate={setFocusPoint} />

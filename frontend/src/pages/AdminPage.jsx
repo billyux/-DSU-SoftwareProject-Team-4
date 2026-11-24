@@ -16,8 +16,131 @@ import {
   fetchPersonaFacilityTypeWeights,
   updatePersonaFacilityTypeWeight,
 } from "../api/weights.js";
+import { fetchFacilityRefreshStatus, startFacilityRefresh } from "../api/admin.js";
 
-export default function AdminPage() {
+function describeRefreshResult(r) {
+  switch (r.status) {
+    case "waiting":
+      return "대기 중";
+    case "running":
+      return "진행 중...";
+    case "done":
+      return `추가 ${r.added} · 삭제 ${r.removed} · 수정 ${r.updated} (현재 ${r.total}곳)`;
+    case "error":
+      return `실패 — ${r.error}`;
+    default:
+      return r.status;
+  }
+}
+
+// FR-09: 상가·병원을 공공데이터 최신본과 비교해 DB에 바로 반영 (백엔드 services/facility_refresh.py)
+function RefreshPanel({ adminPassword, children }) {
+  const [status, setStatus] = useState(null);
+  const [error, setError] = useState(null);
+  const running = status?.status === "running";
+
+  useEffect(() => {
+    fetchFacilityRefreshStatus().then(setStatus).catch(() => {});
+  }, []);
+
+  // 백그라운드 작업이라 끝날 때까지 2초마다 상태를 다시 가져온다
+  useEffect(() => {
+    if (!running) return undefined;
+    const id = setInterval(() => {
+      fetchFacilityRefreshStatus()
+        .then(setStatus)
+        .catch((e) => setError(e.message));
+    }, 2000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  // 경과 시간은 서버가 기록한 시작 시각 기준으로 1초마다 다시 계산 (새로고침해도 이어짐)
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return undefined;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+  const startedMs = status?.started_at ? new Date(status.started_at).getTime() : null;
+  const elapsedSec = running && startedMs ? Math.max(0, Math.floor((now - startedMs) / 1000)) : 0;
+  const estimatedSec = status?.estimated_seconds || 0;
+  const expectedEnd = startedMs && estimatedSec ? new Date(startedMs + estimatedSec * 1000) : null;
+
+  async function handleClick() {
+    const ok = window.confirm(
+      "상가·병원 정보를 공공데이터 최신본과 비교해 DB에 바로 반영합니다.\n없어진 시설은 삭제됩니다. 진행할까요?"
+    );
+    if (!ok) return;
+    setError(null);
+    try {
+      setStatus(await startFacilityRefresh(adminPassword));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  // children(검색 범위 허용 최대값 박스)은 그대로 두고, 넓은 화면(xl)에서는 버튼을 박스 바깥 왼쪽 여백에
+  // 같은 높이로 띄운다. 여백이 없는 좁은 화면에서는 박스 위에 한 줄로 보여준다. 실행 결과는 박스 아래에.
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <button
+          onClick={handleClick}
+          disabled={running}
+          title="상가·병원 정보를 공공데이터 최신본과 비교해 없어진 시설은 지우고 새 시설은 추가합니다"
+          className="mb-3 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 xl:absolute xl:right-full xl:top-0 xl:mb-0 xl:mr-4 xl:h-full xl:w-36"
+        >
+          {running ? "최신화 중..." : "즉시 데이터 최신화"}
+        </button>
+        {children}
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {running && (
+        <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          <p className="font-semibold">데이터 최신화 진행 중입니다. 잠시만 기다려주세요.</p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-blue-100">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all duration-1000"
+              style={{ width: `${estimatedSec ? Math.min(95, (elapsedSec / estimatedSec) * 100) : 0}%` }}
+            />
+          </div>
+          <p className="tabular-nums">
+            경과 시간 <span className="font-semibold">{elapsedSec}초</span>
+            {expectedEnd && (
+              <>
+                {" "}· 예상 소요 약 {estimatedSec}초 (완료 예상{" "}
+                {expectedEnd.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })})
+              </>
+            )}
+          </p>
+          {estimatedSec > 0 && elapsedSec > estimatedSec && (
+            <p className="text-xs text-blue-700">예상보다 오래 걸리고 있습니다. 조금만 더 기다려주세요.</p>
+          )}
+        </div>
+      )}
+      {status && status.status !== "idle" && (
+        <div className="space-y-1 rounded-lg border p-3 text-sm text-gray-700">
+          <p className="font-medium">즉시 데이터 최신화 결과 (상가·병원)</p>
+          {Object.entries(status.results).map(([label, r]) => (
+            <p key={label} className={r.status === "error" ? "text-red-600" : ""}>
+              <span className="font-medium">{label}</span>: {describeRefreshResult(r)}
+            </p>
+          ))}
+          {status.error && <p className="text-red-600">{status.error}</p>}
+          {status.finished_at && (
+            <p className="text-xs text-gray-400">
+              마지막 실행: {new Date(status.finished_at).toLocaleString("ko-KR")}
+              {startedMs && ` (${Math.round((new Date(status.finished_at).getTime() - startedMs) / 1000)}초 걸림)`}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AdminPage({ adminPassword }) {
   const [limit, setLimit] = useState(() => getRadiusLimit());
   const [saved, setSaved] = useState(false);
 
@@ -32,33 +155,31 @@ export default function AdminPage() {
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">관리자 메뉴</h1>
 
-      <div className="p-4 rounded-lg border space-y-3">
-        <h2 className="font-semibold">검색 범위 허용 최대값 설정 (FR-10)</h2>
-        <p className="text-sm text-gray-500">
-          메인 화면에서 사용자가 조절할 수 있는 검색 범위의 최대값입니다. 예를 들어 500m로 설정하면
-          사용자는 지도에서 50m~500m 사이에서 반경을 직접 고를 수 있습니다. 설정한 값은 다음에
-          메인 화면을 열 때부터 적용됩니다.
-        </p>
-        <input
-          type="range"
-          min={RADIUS_MIN}
-          max={RADIUS_MAX}
-          step={RADIUS_STEP}
-          value={limit}
-          onChange={handleChange}
-          className="w-full"
-        />
-        <div className="flex justify-between text-xs text-gray-400">
-          <span>{RADIUS_MIN}m</span>
-          <span className="text-base font-semibold text-gray-800">최대 {limit}m</span>
-          <span>{RADIUS_MAX}m</span>
+      <RefreshPanel adminPassword={adminPassword}>
+        <div className="p-4 rounded-lg border space-y-3">
+          <h2 className="font-semibold">검색 범위 허용 최대값 설정 (FR-10)</h2>
+          <p className="text-sm text-gray-500">
+            메인 화면에서 사용자가 조절할 수 있는 검색 범위의 최대값입니다. 예를 들어 500m로 설정하면
+            사용자는 지도에서 50m~500m 사이에서 반경을 직접 고를 수 있습니다. 설정한 값은 다음에
+            메인 화면을 열 때부터 적용됩니다.
+          </p>
+          <input
+            type="range"
+            min={RADIUS_MIN}
+            max={RADIUS_MAX}
+            step={RADIUS_STEP}
+            value={limit}
+            onChange={handleChange}
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-gray-400">
+            <span>{RADIUS_MIN}m</span>
+            <span className="text-base font-semibold text-gray-800">최대 {limit}m</span>
+            <span>{RADIUS_MAX}m</span>
+          </div>
+          {saved && <p className="text-sm text-green-600">저장됨</p>}
         </div>
-        {saved && <p className="text-sm text-green-600">저장됨</p>}
-      </div>
-
-      <p className="text-sm text-gray-500">
-        데이터 즉시 최신화(FR-09) 기능이 이후 이 화면에 추가됩니다.
-      </p>
+      </RefreshPanel>
 
       <WeightsEditor />
     </div>

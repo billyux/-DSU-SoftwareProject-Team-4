@@ -67,6 +67,9 @@ class Facility(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     source = Column(String, nullable=True)  # 원본 데이터셋명 (출처 추적용)
+    # 원본 데이터의 고유번호(상가 bizesId, 병원 ykiho) — 관리자 즉시 최신화에서 같은 시설 판단용.
+    # 최신화 대상이 아닌 데이터(버스정류장, CCTV, 지하철역, 학교, 노인교실)와 CSV로 막 적재한 행은 비어 있음
+    external_id = Column(String, nullable=True, index=True)
 
 
 class CategoryParam(Base):
