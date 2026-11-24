@@ -34,7 +34,8 @@ export default function App() {
 
   return (
     <div>
-      <nav className="flex justify-end p-4 border-b">
+      <nav className="flex justify-between items-center p-4 border-b">
+        <span className="text-xl font-bold">동네 진단</span>
         {view === "main" ? (
           <button
             onClick={openPasswordPrompt}
@@ -90,7 +91,7 @@ export default function App() {
       {view === "admin" ? (
         <AdminPage />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start max-w-7xl mx-auto p-4">
+        <div className="max-w-5xl mx-auto p-4 space-y-4">
           <ReportPage persona={persona} onPersonaChange={setPersona} onLocate={setFocusPoint} />
           <SafetyMapPage persona={persona} focusPoint={focusPoint} />
         </div>

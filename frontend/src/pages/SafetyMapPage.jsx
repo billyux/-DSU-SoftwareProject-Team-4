@@ -45,6 +45,7 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [score, setScore] = useState(null);
+  const [selectedPoint, setSelectedPoint] = useState(null);
   // 관리자 메뉴에서 설정한 허용 최대값은 지도가 열릴 때 한 번만 읽어온다(이후 변경은 다음 방문부터 적용)
   const [radiusLimit] = useState(() => getRadiusLimit());
   const [radiusM, setRadiusM] = useState(() => getRadiusLimit());
@@ -72,8 +73,31 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
     }
     map.setCenter(new naver.maps.LatLng(lat, lng));
     map.setZoom(16);
+    selectPoint(lat, lng);
+  }
+
+  function clearOverlays() {
+    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    overlaysRef.current = [];
+    // 시설 이름 말풍선은 마커와 별개로 지도에 붙어 있어서 따로 닫아야 한다
+    infoWindowRef.current?.close();
+  }
+
+  // 지도 클릭·주소 검색은 지점에 마커만 찍는다. 시설 조회와 점수 계산은 "정주여건 계산" 버튼(searchAt)에서 한다
+  function selectPoint(lat, lng) {
+    const naver = naverRef.current;
+    const map = mapRef.current;
+    if (!naver || !map) return;
+
+    searchIdRef.current += 1; // 진행 중이던 계산의 응답이 늦게 와도 무시되도록
+    clearOverlays();
+    overlaysRef.current = [new naver.maps.Marker({ position: new naver.maps.LatLng(lat, lng), map })];
+
     lastClickRef.current = { lat, lng };
-    searchAt(lat, lng);
+    setSelectedPoint({ lat, lng });
+    setResult(null);
+    setScore(null);
+    setError(null);
   }
 
   async function searchAt(lat, lng) {
@@ -84,10 +108,7 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
     // 빠르게 여러 번 클릭하면 이전 요청의 응답이 늦게 도착할 수 있어서, 최신 요청 응답만 반영한다
     const searchId = ++searchIdRef.current;
 
-    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
-    overlaysRef.current = [];
-    // 시설 이름 말풍선은 마커와 별개로 지도에 붙어 있어서 따로 닫아야 한다
-    infoWindowRef.current?.close();
+    clearOverlays();
 
     const position = new naver.maps.LatLng(lat, lng);
     const marker = new naver.maps.Marker({ position, map });
@@ -169,8 +190,7 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
         naver.maps.Event.addListener(map, "click", (pointerEvent) => {
           const lat = pointerEvent.coord.lat();
           const lng = pointerEvent.coord.lng();
-          lastClickRef.current = { lat, lng };
-          searchAt(lat, lng);
+          selectPoint(lat, lng);
         });
 
         if (pendingFocusRef.current) {
@@ -187,10 +207,10 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 검색 범위나 페르소나를 바꾸면, 이미 클릭했던 지점 기준으로 다시 조회
+  // 검색 범위나 페르소나를 바꾸면 이전 계산 결과는 맞지 않으므로 지우고, 마커만 남겨 다시 계산하게 한다
   useEffect(() => {
     if (lastClickRef.current) {
-      searchAt(lastClickRef.current.lat, lastClickRef.current.lng);
+      selectPoint(lastClickRef.current.lat, lastClickRef.current.lng);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radiusM, persona]);
@@ -203,89 +223,106 @@ export default function SafetyMapPage({ focusPoint, persona } = {}) {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">동네 편의·방범 지도 (사상구, 부산)</h1>
-      <p className="text-sm text-gray-500">
-        지도를 클릭하면 그 지점 반경 {radiusM}m 안의 모든 시설(
-        <span style={{ color: CATEGORY_COLORS.안전 }}>안전</span>·
-        <span style={{ color: CATEGORY_COLORS.생활편의 }}>생활편의(학교·병원 포함)</span>·
-        <span style={{ color: CATEGORY_COLORS.음식점 }}>음식점</span>·
-        <span style={{ color: CATEGORY_COLORS.교통 }}>교통</span>)과 점수를 함께 보여줍니다. 점을
-        클릭하면 이름이 뜹니다.
-      </p>
-
       {error && <p className="text-red-600">{error}</p>}
 
       <div className="flex flex-col md:flex-row gap-4">
         <div ref={mapContainerRef} className="flex-1 h-[420px] rounded-lg border" />
 
-        <div className="w-full md:w-56 shrink-0 p-4 rounded-lg border space-y-3">
-          <h2 className="font-semibold text-sm">검색 범위</h2>
-          <input
-            type="range"
-            min={RADIUS_MIN}
-            max={radiusLimit}
-            step={RADIUS_STEP}
-            value={radiusM}
-            onChange={(e) => setRadiusM(Number(e.target.value))}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-gray-400">
-            <span>{RADIUS_MIN}m</span>
-            <span className="text-base font-semibold text-gray-800">{radiusM}m</span>
-            <span>{radiusLimit}m</span>
+        <div className="w-full md:w-56 shrink-0 space-y-3 self-start">
+          <button
+            onClick={() => selectedPoint && searchAt(selectedPoint.lat, selectedPoint.lng)}
+            disabled={!selectedPoint || result?.loading}
+            className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {result?.loading ? "계산 중..." : "정주여건 계산"}
+          </button>
+          {!selectedPoint && (
+            <p className="text-xs text-gray-500 text-center">지도를 클릭하거나 주소를 검색해 지점을 먼저 고르세요.</p>
+          )}
+
+          <div className="p-4 rounded-lg border space-y-3">
+            <h2 className="font-semibold text-sm">검색 범위</h2>
+            <input
+              type="range"
+              min={RADIUS_MIN}
+              max={radiusLimit}
+              step={RADIUS_STEP}
+              value={radiusM}
+              onChange={(e) => setRadiusM(Number(e.target.value))}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-400">
+              <span>{RADIUS_MIN}m</span>
+              <span className="text-base font-semibold text-gray-800">{radiusM}m</span>
+              <span>{radiusLimit}m</span>
+            </div>
+
+            <div className="pt-3 border-t space-y-1 text-xs text-gray-600">
+              {Object.entries(CATEGORY_COLORS).map(([category, color]) => (
+                <div key={category} className="flex items-center gap-2">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                  {category === "생활편의" ? "생활편의(학교·병원 포함)" : category}
+                </div>
+              ))}
+              <p className="pt-1 text-gray-400">점을 클릭하면 시설 이름이 뜹니다.</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {score && (
-        <div className="p-4 rounded-lg border space-y-3">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-gray-500">[{persona}] 정주여건 점수</span>
-            <span className="text-3xl font-bold">{score.total_score}점</span>
-          </div>
-          <div className="space-y-2">
-            {score.categories
-              .filter((c) => c.score_category !== "의료_종합병원")
-              .map((c) => (
-                <div key={c.score_category} className="flex items-center gap-2">
-                  <span className="w-24 text-sm text-gray-600">
-                    {SCORE_CATEGORY_LABELS[c.score_category] || c.score_category}
-                  </span>
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500" style={{ width: `${Math.round(c.score * 100)}%` }} />
-                  </div>
-                  <span className="w-10 text-right text-sm text-gray-500">{Math.round(c.score * 100)}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
+      {(score || result) && (
+        <div className="p-4 rounded-lg border bg-white space-y-4">
+          {score && (
+            <div className="space-y-3">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-gray-500">[{persona}] 정주여건 점수</span>
+                <span className="text-3xl font-bold">{score.total_score}점</span>
+              </div>
+              <div className="space-y-2">
+                {score.categories
+                  .filter((c) => c.score_category !== "의료_종합병원")
+                  .map((c) => (
+                    <div key={c.score_category} className="flex items-center gap-2">
+                      <span className="w-24 text-sm text-gray-600">
+                        {SCORE_CATEGORY_LABELS[c.score_category] || c.score_category}
+                      </span>
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500" style={{ width: `${Math.round(c.score * 100)}%` }} />
+                      </div>
+                      <span className="w-10 text-right text-sm text-gray-500">{Math.round(c.score * 100)}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
-      {result && (
-        <div className="p-4 rounded-lg shadow bg-white space-y-2">
-          <p className="text-sm text-gray-500">
-            클릭 좌표: {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
-          </p>
-          <p className="text-lg font-semibold">
-            반경 {radiusM}m 내 전체 시설: {result.loading ? "조회 중..." : `${result.count}개`}
-          </p>
+          {result && (
+            <div className={`space-y-2 ${score ? "pt-4 border-t" : ""}`}>
+              <p className="text-sm text-gray-500">
+                클릭 좌표: {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
+              </p>
+              <p className="text-lg font-semibold">
+                반경 {radiusM}m 내 전체 시설: {result.loading ? "조회 중..." : `${result.count}개`}
+              </p>
 
-          {result.facilities && result.facilities.length > 0 && (
-            <ul className="text-sm text-gray-700 divide-y max-h-64 overflow-y-auto">
-              {result.facilities.map((f, i) => (
-                <li key={i} className="py-1 flex justify-between gap-2">
-                  <span className="truncate">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full mr-2"
-                      style={{ backgroundColor: CATEGORY_COLORS[f.category] || DEFAULT_COLOR }}
-                    />
-                    {f.name || f.facility_type}
-                    <span className="text-gray-400"> · {f.facility_type}</span>
-                  </span>
-                  <span className="text-gray-400 shrink-0">{f.distance_m}m</span>
-                </li>
-              ))}
-            </ul>
+              {result.facilities && result.facilities.length > 0 && (
+                <ul className="text-sm text-gray-700 divide-y max-h-64 overflow-y-auto">
+                  {result.facilities.map((f, i) => (
+                    <li key={i} className="py-1 flex justify-between gap-2">
+                      <span className="truncate">
+                        <span
+                          className="inline-block w-2 h-2 rounded-full mr-2"
+                          style={{ backgroundColor: CATEGORY_COLORS[f.category] || DEFAULT_COLOR }}
+                        />
+                        {f.name || f.facility_type}
+                        <span className="text-gray-400"> · {f.facility_type}</span>
+                      </span>
+                      <span className="text-gray-400 shrink-0">{f.distance_m}m</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </div>
       )}

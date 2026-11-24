@@ -22,10 +22,10 @@ export default function ReportPage({ persona, onPersonaChange, onLocate } = {}) 
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">동네 진단</h1>
+    <div className="max-w-2xl mx-auto space-y-3">
+      <SearchBar onSearch={handleSearch} />
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 justify-center">
         {PERSONAS.map((p) => (
           <button
             key={p}
@@ -39,13 +39,12 @@ export default function ReportPage({ persona, onPersonaChange, onLocate } = {}) 
         ))}
       </div>
 
-      <SearchBar onSearch={handleSearch} />
+      {loading && <p className="text-sm text-gray-500 text-center">위치 찾는 중...</p>}
+      {error && <p className="text-red-600 text-center">{error}</p>}
 
-      {loading && <p className="text-sm text-gray-500">위치 찾는 중...</p>}
-      {error && <p className="text-red-600">{error}</p>}
-
-      <p className="text-sm text-gray-500">
-        주소를 검색하거나 오른쪽 지도를 클릭하면, 그 지점의 점수와 주변 시설이 함께 표시됩니다.
+      <p className="text-sm text-gray-500 text-center">
+        주소를 검색하거나 아래 지도를 클릭해 지점을 고른 뒤, 지도 오른쪽의 "정주여건 계산" 버튼을 누르면
+        점수와 주변 시설이 지도 밑에 표시됩니다.
       </p>
     </div>
   );
