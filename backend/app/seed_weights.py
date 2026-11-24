@@ -17,7 +17,8 @@ PERSONAS = ["개인", "가족", "노인"]
 CATEGORY_PARAMS = [
     # score_category, radius_m(r_c), target_count(n_c)
     ("안전", 300, 4),
-    ("의료_의원급", 500, 2),
+    # 의원급 시설 유형을 17종으로 늘리면서 목표 개수를 15로 올림 (2곳이면 거의 모든 지점이 만점 근처가 됨)
+    ("의료_의원급", 1000, 15),
     # 종합병원은 반경 안 개수가 아니라 최근접 거리로 계산하므로, radius_m은
     # "이 거리 안에서 가장 가까운 종합병원을 찾는다"는 검색 반경으로 씀. target_count는 미사용
     ("의료_종합병원", 5000, 0),
@@ -43,6 +44,21 @@ FACILITY_TYPE_WEIGHTS = [
     ("내과/소아과 의원", "의료_의원급", 0.6),
     ("피부/비뇨기과 의원", "의료_의원급", 0.1),
     ("성형외과 의원", "의료_의원급", 0.1),
+    # 2026-11-24 추가: 일상적·필수적인 진료일수록 높게 (문서 원칙에 따른 초안, 관리자 화면에서 조정)
+    ("일반병원", "의료_의원급", 0.8),
+    ("이비인후과 의원", "의료_의원급", 0.5),
+    ("외과 의원", "의료_의원급", 0.5),
+    ("보건소", "의료_의원급", 0.5),
+    ("기타 의원", "의료_의원급", 0.4),
+    ("치과의원", "의료_의원급", 0.4),
+    ("치과병원", "의료_의원급", 0.4),
+    ("안과 의원", "의료_의원급", 0.3),
+    ("산부인과 의원", "의료_의원급", 0.3),
+    ("신경/정신과 의원", "의료_의원급", 0.3),
+    ("한의원", "의료_의원급", 0.3),
+    ("한방병원", "의료_의원급", 0.3),
+    ("요양병원", "의료_의원급", 0.2),
+    ("정신병원", "의료_의원급", 0.1),
     ("종합병원", "의료_종합병원", 1.0),
     ("슈퍼마켓", "생필품", 1.0),
     ("편의점", "생필품", 1.0),
@@ -62,6 +78,28 @@ PERSONA_OPTIONS = {
     "가족": {"교육": [("초등학교", 1.0), ("중학교", 1.0), ("고등학교", 1.0)]},
     "노인": {"노인복지": [("노인교실", 1.0)]},
 }
+
+
+def ensure_base_facility_types(db):
+    """FACILITY_TYPE_WEIGHTS 중 DB에 없는 유형만 세 페르소나 모두에 추가한다 (이미 있는 값은 그대로).
+    기본 시드는 빈 테이블에만 들어가서, 운영 중인 DB에 새 유형을 넣으려면 이 단계가 필요하다."""
+    for persona in PERSONAS:
+        for facility_type, score_category, weight in FACILITY_TYPE_WEIGHTS:
+            exists = (
+                db.query(PersonaFacilityTypeWeight)
+                .filter_by(persona=persona, facility_type=facility_type)
+                .first()
+            )
+            if not exists:
+                db.add(
+                    PersonaFacilityTypeWeight(
+                        persona=persona,
+                        facility_type=facility_type,
+                        score_category=score_category,
+                        weight=weight,
+                    )
+                )
+                print(f"[{persona}] 시설 유형 '{facility_type}' 추가 ({score_category}, {weight})")
 
 
 def ensure_persona_options(db):
@@ -146,6 +184,7 @@ def main():
             print("PersonaFacilityTypeWeight 이미 데이터 있음, 건너뜀")
 
         db.flush()
+        ensure_base_facility_types(db)
         ensure_persona_options(db)
         db.commit()
     finally:
