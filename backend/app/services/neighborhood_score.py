@@ -80,8 +80,32 @@ def _hospital_distance_score(d_min: float | None) -> float:
     return (HOSPITAL_ZERO_SCORE_DISTANCE_M - d_min) / (HOSPITAL_ZERO_SCORE_DISTANCE_M - HOSPITAL_FULL_SCORE_DISTANCE_M)
 
 
-def calculate_score(lat: float, lng: float, db: Session, persona: str = DEFAULT_PERSONA) -> ScoreResult:
-    """persona: "개인" | "가족" | "노인" — 카테고리·시설 유형 가중치가 페르소나별로 다르게 적용됨."""
+def _nearby_out(nearby: list[tuple[Facility, float]]) -> list[dict]:
+    return sorted(
+        [
+            {
+                "name": f.name,
+                "facility_type": f.facility_type,
+                "category": f.category,
+                "latitude": f.latitude,
+                "longitude": f.longitude,
+                "distance_m": round(d, 1),
+            }
+            for f, d in nearby
+        ],
+        key=lambda x: x["distance_m"],
+    )
+
+
+def calculate_score(
+    lat: float, lng: float, db: Session, persona: str = DEFAULT_PERSONA, radius_m: float | None = None
+) -> ScoreResult:
+    """persona: "개인" | "가족" | "노인" — 카테고리·시설 유형 가중치가 페르소나별로 다르게 적용됨.
+
+    radius_m: 사용자가 고른 검색 반경. 주면 종합병원을 뺀 모든 카테고리를 이 반경 안의 시설로 계산한다.
+    종합병원은 반경 안에 없는 게 보통이라 문서 4단계대로 CategoryParam의 검색 반경(5km)에서 최근접 거리로 계산.
+    안 주면 카테고리별 기본 반경(CategoryParam.radius_m)을 쓴다.
+    """
     params = {p.score_category: p for p in db.query(CategoryParam).all()}
     category_weights = {
         w.score_category: w.category_weight
@@ -106,19 +130,14 @@ def calculate_score(lat: float, lng: float, db: Session, persona: str = DEFAULT_
             nearby = _nearby_with_distance(candidates, lat, lng, param.radius_m)
             d_min = min((d for _, d in nearby), default=None)
             score = _hospital_distance_score(d_min)
-            nearby_out = sorted(
-                [{"name": f.name, "facility_type": f.facility_type, "distance_m": round(d, 1)} for f, d in nearby],
-                key=lambda x: x["distance_m"],
-            )[:5]
+            nearby_out = _nearby_out(nearby)[:5]
         else:
-            candidates = _bbox_candidates(db, facility_types, lat, lng, param.radius_m)
-            nearby = _nearby_with_distance(candidates, lat, lng, param.radius_m)
-            x_c = sum(weight_by_type.get(f.facility_type, 0.0) * max(0.0, 1 - d / param.radius_m) for f, d in nearby)
+            radius = radius_m if radius_m is not None else param.radius_m
+            candidates = _bbox_candidates(db, facility_types, lat, lng, radius)
+            nearby = _nearby_with_distance(candidates, lat, lng, radius)
+            x_c = sum(weight_by_type.get(f.facility_type, 0.0) * max(0.0, 1 - d / radius) for f, d in nearby)
             score = _saturation_score(x_c, param.target_count)
-            nearby_out = sorted(
-                [{"name": f.name, "facility_type": f.facility_type, "distance_m": round(d, 1)} for f, d in nearby],
-                key=lambda x: x["distance_m"],
-            )
+            nearby_out = _nearby_out(nearby)
 
         breakdowns[score_category] = CategoryBreakdown(
             score_category=score_category,

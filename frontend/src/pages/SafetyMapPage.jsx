@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchNearbyFacilities } from "../api/facilities.js";
 import { fetchScoreByPoint } from "../api/score.js";
 import { PERSONAS, PERSONA_LABELS } from "../api/weights.js";
 import { getRadiusLimit, RADIUS_MIN, RADIUS_STEP } from "../lib/settings.js";
@@ -131,13 +130,19 @@ export default function SafetyMapPage({ focusPoint, persona, onPersonaChange } =
     setScore(null);
     setError(null);
     try {
-      const [data, scoreResult] = await Promise.all([
-        fetchNearbyFacilities(lat, lng, radiusRef.current),
-        fetchScoreByPoint(lat, lng, personaRef.current),
-      ]);
+      const scoreResult = await fetchScoreByPoint(lat, lng, personaRef.current, radiusRef.current);
       if (searchId !== searchIdRef.current) return;
 
-      const facilityMarkers = data.facilities.map((f) => {
+      // 지도·목록에는 점수 계산에 실제로 쓰인 시설만 보여준다 (이 페르소나에서 가중치가 있는 카테고리, 반경 안).
+      // 종합병원은 반경 밖(최대 5km) 최근접 거리로 계산되므로 지도에 그리지 않고 결과에 따로 표시
+      const usedFacilities = scoreResult.categories
+        .filter((c) => c.category_weight > 0 && c.score_category !== "의료_종합병원")
+        .flatMap((c) => c.nearby)
+        .sort((a, b) => a.distance_m - b.distance_m);
+      const nearestHospital =
+        scoreResult.categories.find((c) => c.score_category === "의료_종합병원")?.nearby[0] || null;
+
+      const facilityMarkers = usedFacilities.map((f) => {
         const color = CATEGORY_COLORS[f.category] || DEFAULT_COLOR;
         const fMarker = new naver.maps.Marker({
           position: new naver.maps.LatLng(f.latitude, f.longitude),
@@ -166,7 +171,7 @@ export default function SafetyMapPage({ focusPoint, persona, onPersonaChange } =
 
       overlaysRef.current = [...overlaysRef.current, ...facilityMarkers];
 
-      setResult({ lat, lng, count: data.count, facilities: data.facilities });
+      setResult({ lat, lng, count: usedFacilities.length, facilities: usedFacilities, nearestHospital });
       setScore(scoreResult);
     } catch (e) {
       if (searchId !== searchIdRef.current) return;
@@ -320,8 +325,16 @@ export default function SafetyMapPage({ focusPoint, persona, onPersonaChange } =
                 클릭 좌표: {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
               </p>
               <p className="text-lg font-semibold">
-                반경 {radiusM}m 내 전체 시설: {result.loading ? "조회 중..." : `${result.count}개`}
+                반경 {radiusM}m 내 점수에 반영된 시설: {result.loading ? "조회 중..." : `${result.count}개`}
               </p>
+              {!result.loading && (
+                <p className="text-sm text-gray-600">
+                  가장 가까운 종합병원:{" "}
+                  {result.nearestHospital
+                    ? `${result.nearestHospital.name} (${(result.nearestHospital.distance_m / 1000).toFixed(1)}km)`
+                    : "5km 안에 없음"}
+                </p>
+              )}
 
               {result.facilities && result.facilities.length > 0 && (
                 <ul className="text-sm text-gray-700 divide-y max-h-64 overflow-y-auto">

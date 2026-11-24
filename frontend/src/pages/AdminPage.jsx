@@ -162,7 +162,8 @@ function WeightsEditor() {
       <h2 className="font-semibold">점수 가중치 설정</h2>
       <p className="text-sm text-gray-500">
         카테고리 가중치(W_c)와 시설 유형별 가중치(wᵢ)는 페르소나(개인/가족/노인)마다 따로
-        저장됩니다. 반경(r_c)·목표 개수(n_c)는 페르소나와 무관한 공통 값입니다. 입력란에서
+        저장됩니다. 목표 개수(n_c)는 페르소나와 무관한 공통 값입니다. 계산 반경은 사용자가 메인
+        화면에서 고른 검색 범위를 쓰고, 종합병원만 별도의 최근접 검색 반경을 씁니다. 입력란에서
         벗어나면(blur) 자동 저장되고, 저장 즉시 재배포 없이 점수 계산에 반영됩니다.
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -207,7 +208,7 @@ function WeightsEditor() {
                   <span className="text-xs text-gray-400">저장 중...</span>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-3 text-sm items-end">
+              <div className="grid grid-cols-2 gap-3 text-sm items-end">
                 <label className="space-y-1">
                   <span className="text-gray-500 block">가중치 (W_c, 페르소나별)</span>
                   <input
@@ -219,28 +220,32 @@ function WeightsEditor() {
                     className="w-full border rounded px-2 py-1"
                   />
                 </label>
-                <label className="space-y-1">
-                  <span className="text-gray-500 block">반경 (r_c, m, 공통)</span>
-                  <input
-                    type="number"
-                    step="1"
-                    value={param.radius_m}
-                    onChange={(e) => handleParamInput(cw.score_category, "radius_m", e.target.value)}
-                    onBlur={(e) => handleParamBlur(cw.score_category, "radius_m", e.target.value)}
-                    className="w-full border rounded px-2 py-1"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-gray-500 block">목표 개수 (n_c, 공통)</span>
-                  <input
-                    type="number"
-                    step="1"
-                    value={param.target_count}
-                    onChange={(e) => handleParamInput(cw.score_category, "target_count", e.target.value)}
-                    onBlur={(e) => handleParamBlur(cw.score_category, "target_count", e.target.value)}
-                    className="w-full border rounded px-2 py-1"
-                  />
-                </label>
+                {/* 반경은 사용자가 메인 화면에서 고른 검색 범위를 쓴다. 종합병원만 최근접 검색 반경이 따로 있음 */}
+                {cw.score_category === "의료_종합병원" ? (
+                  <label className="space-y-1">
+                    <span className="text-gray-500 block">최근접 검색 반경 (m, 공통)</span>
+                    <input
+                      type="number"
+                      step="1"
+                      value={param.radius_m}
+                      onChange={(e) => handleParamInput(cw.score_category, "radius_m", e.target.value)}
+                      onBlur={(e) => handleParamBlur(cw.score_category, "radius_m", e.target.value)}
+                      className="w-full border rounded px-2 py-1"
+                    />
+                  </label>
+                ) : (
+                  <label className="space-y-1">
+                    <span className="text-gray-500 block">목표 개수 (n_c, 공통)</span>
+                    <input
+                      type="number"
+                      step="1"
+                      value={param.target_count}
+                      onChange={(e) => handleParamInput(cw.score_category, "target_count", e.target.value)}
+                      onBlur={(e) => handleParamBlur(cw.score_category, "target_count", e.target.value)}
+                      className="w-full border rounded px-2 py-1"
+                    />
+                  </label>
+                )}
               </div>
 
               {typesByCategory[cw.score_category]?.length > 0 && (

@@ -11,8 +11,9 @@ export async function fetchScore(address, persona) {
   return res.json();
 }
 
-export async function fetchScoreByPoint(lat, lng, persona) {
-  const params = new URLSearchParams({ lat, lng, persona });
+// radiusM: 사용자 검색 반경 — 종합병원을 뺀 모든 카테고리가 이 반경 안의 시설로 계산됨
+export async function fetchScoreByPoint(lat, lng, persona, radiusM) {
+  const params = new URLSearchParams({ lat, lng, persona, radius_m: radiusM });
   const res = await fetch(`${API_BASE_URL}/api/score/point?${params}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

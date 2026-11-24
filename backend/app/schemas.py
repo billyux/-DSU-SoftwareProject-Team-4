@@ -5,6 +5,9 @@ from pydantic import BaseModel
 class NearbyFacilityOut(BaseModel):
     name: str | None
     facility_type: str
+    category: str  # 지도 색 구분용 (facilities.category)
+    latitude: float
+    longitude: float
     distance_m: float
 
 
