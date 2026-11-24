@@ -230,89 +230,118 @@ export default function SafetyMapPage({ focusPoint, persona, onPersonaChange } =
   }, [focusPoint]);
 
   return (
-    <div className="space-y-4">
-      {error && <p className="text-red-600">{error}</p>}
+    <div className="space-y-5">
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</p>
+      )}
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div ref={mapContainerRef} className="flex-1 h-[420px] rounded-lg border" />
+      <div className="flex flex-col gap-4 md:flex-row">
+        <div
+          ref={mapContainerRef}
+          className="h-[420px] flex-1 overflow-hidden rounded-2xl border border-slate-200 shadow-sm"
+        />
 
-        <div className="w-full md:w-56 shrink-0 space-y-3 self-start">
+        <div className="w-full shrink-0 space-y-3 self-start md:w-56">
           <button
             onClick={() => selectedPoint && searchAt(selectedPoint.lat, selectedPoint.lng)}
             disabled={!selectedPoint || result?.loading}
-            className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-blue-600 px-4 py-3.5 font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
           >
             {result?.loading ? "계산 중..." : "정주여건 계산"}
           </button>
           {!selectedPoint && (
-            <p className="text-xs text-gray-500 text-center">지도를 클릭하거나 주소를 검색해 지점을 먼저 고르세요.</p>
+            <p className="text-center text-xs leading-relaxed text-slate-400">
+              지도를 클릭하거나 주소를 검색해 지점을 먼저 고르세요.
+            </p>
           )}
 
-          <div className="p-4 rounded-lg border space-y-3">
-            <h2 className="font-semibold text-sm">검색 범위</h2>
-            <input
-              type="range"
-              min={RADIUS_MIN}
-              max={radiusLimit}
-              step={RADIUS_STEP}
-              value={radiusM}
-              onChange={(e) => setRadiusM(Number(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-gray-400">
-              <span>{RADIUS_MIN}m</span>
-              <span className="text-base font-semibold text-gray-800">{radiusM}m</span>
-              <span>{radiusLimit}m</span>
-            </div>
+          <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section className="space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-xs font-semibold text-slate-500">검색 범위</h2>
+                <span className="text-sm font-semibold tabular-nums text-blue-600">{radiusM}m</span>
+              </div>
+              <input
+                type="range"
+                min={RADIUS_MIN}
+                max={radiusLimit}
+                step={RADIUS_STEP}
+                value={radiusM}
+                onChange={(e) => setRadiusM(Number(e.target.value))}
+                className="w-full accent-blue-600"
+              />
+              <div className="flex justify-between text-[11px] tabular-nums text-slate-400">
+                <span>{RADIUS_MIN}m</span>
+                <span>{radiusLimit}m</span>
+              </div>
+            </section>
 
-            <div className="flex flex-col gap-1.5">
-              {PERSONAS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => onPersonaChange?.(p)}
-                  className={`w-full px-3 py-1.5 rounded-lg text-sm ${
-                    persona === p ? "bg-blue-600 text-white" : "bg-gray-100"
-                  }`}
-                >
-                  {PERSONA_LABELS[p]}
-                </button>
-              ))}
-            </div>
+            <section className="space-y-2">
+              <h2 className="text-xs font-semibold text-slate-500">가구 유형</h2>
+              <div className="flex flex-col gap-1.5">
+                {PERSONAS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => onPersonaChange?.(p)}
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                      persona === p
+                        ? "border-blue-600 bg-blue-50 font-medium text-blue-700"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    {PERSONA_LABELS[p]}
+                  </button>
+                ))}
+              </div>
+            </section>
 
-            <div className="pt-3 border-t space-y-1 text-xs text-gray-600">
+            <section className="space-y-1.5 border-t border-slate-100 pt-4 text-xs text-slate-600">
+              <h2 className="pb-0.5 font-semibold text-slate-500">범례</h2>
               {Object.entries(CATEGORY_COLORS).map(([category, color]) => (
                 <div key={category} className="flex items-center gap-2">
-                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
                   {category === "생활편의" ? "생활편의(학교·병원 포함)" : category}
                 </div>
               ))}
-              <p className="pt-1 text-gray-400">점을 클릭하면 시설 이름이 뜹니다.</p>
-            </div>
+              <p className="pt-1 text-slate-400">점을 클릭하면 시설 이름이 뜹니다.</p>
+            </section>
           </div>
         </div>
       </div>
 
       {(score || result) && (
-        <div className="p-4 rounded-lg border bg-white space-y-4">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {score && (
-            <div className="space-y-3">
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm text-gray-500">[{PERSONA_LABELS[persona]}] 정주여건 점수</span>
-                <span className="text-3xl font-bold">{score.total_score}점</span>
+            <div className="grid gap-6 p-5 md:grid-cols-[200px_1fr] md:items-center">
+              <div className="space-y-1">
+                <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  {PERSONA_LABELS[persona]}
+                </span>
+                <p className="pt-1 text-sm text-slate-500">정주여건 점수</p>
+                <p className="flex items-baseline gap-1">
+                  <span className="text-5xl font-bold tabular-nums tracking-tight">{score.total_score}</span>
+                  <span className="text-sm text-slate-400">/ 100</span>
+                </p>
+                <p className="text-xs text-slate-400">반경 {radiusM}m 기준</p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {score.categories
                   // 종합병원은 의원급과 합산되고, 가중치 0인 카테고리는 이 페르소나 계산에 안 들어가므로 숨김
                   .filter((c) => c.score_category !== "의료_종합병원" && c.category_weight > 0)
                   .map((c) => (
-                    <div key={c.score_category} className="flex items-center gap-2">
-                      <span className="w-24 text-sm text-gray-600">
+                    <div key={c.score_category} className="flex items-center gap-3">
+                      <span className="w-24 shrink-0 text-sm text-slate-600">
                         {SCORE_CATEGORY_LABELS[c.score_category] || c.score_category}
                       </span>
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500" style={{ width: `${Math.round(c.score * 100)}%` }} />
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-blue-500 transition-all"
+                          style={{ width: `${Math.round(c.score * 100)}%` }}
+                        />
                       </div>
-                      <span className="w-10 text-right text-sm text-gray-500">{Math.round(c.score * 100)}</span>
+                      <span className="w-9 text-right text-sm font-medium tabular-nums text-slate-700">
+                        {Math.round(c.score * 100)}
+                      </span>
                     </div>
                   ))}
               </div>
@@ -320,35 +349,43 @@ export default function SafetyMapPage({ focusPoint, persona, onPersonaChange } =
           )}
 
           {result && (
-            <div className={`space-y-2 ${score ? "pt-4 border-t" : ""}`}>
-              <p className="text-sm text-gray-500">
-                클릭 좌표: {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
-              </p>
-              <p className="text-lg font-semibold">
-                반경 {radiusM}m 내 점수에 반영된 시설: {result.loading ? "조회 중..." : `${result.count}개`}
-              </p>
+            <div className={`space-y-3 p-5 ${score ? "border-t border-slate-100" : ""}`}>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="font-semibold">
+                  점수에 반영된 시설{" "}
+                  <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-600">
+                    {result.loading ? "조회 중..." : `${result.count}곳`}
+                  </span>
+                </h3>
+                <span className="text-xs tabular-nums text-slate-400">
+                  반경 {radiusM}m · {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
+                </span>
+              </div>
+
               {!result.loading && (
-                <p className="text-sm text-gray-600">
-                  가장 가까운 종합병원:{" "}
-                  {result.nearestHospital
-                    ? `${result.nearestHospital.name} (${(result.nearestHospital.distance_m / 1000).toFixed(1)}km)`
-                    : "5km 안에 없음"}
+                <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  가장 가까운 종합병원{" "}
+                  <span className="font-medium text-slate-800">
+                    {result.nearestHospital
+                      ? `${result.nearestHospital.name} · ${(result.nearestHospital.distance_m / 1000).toFixed(1)}km`
+                      : "5km 안에 없음"}
+                  </span>
                 </p>
               )}
 
               {result.facilities && result.facilities.length > 0 && (
-                <ul className="text-sm text-gray-700 divide-y max-h-64 overflow-y-auto">
+                <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto text-sm">
                   {result.facilities.map((f, i) => (
-                    <li key={i} className="py-1 flex justify-between gap-2">
-                      <span className="truncate">
-                        <span
-                          className="inline-block w-2 h-2 rounded-full mr-2"
-                          style={{ backgroundColor: CATEGORY_COLORS[f.category] || DEFAULT_COLOR }}
-                        />
-                        {f.name || f.facility_type}
-                        <span className="text-gray-400"> · {f.facility_type}</span>
+                    <li key={i} className="flex items-center gap-3 py-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: CATEGORY_COLORS[f.category] || DEFAULT_COLOR }}
+                      />
+                      <span className="truncate font-medium text-slate-800">{f.name || f.facility_type}</span>
+                      <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
+                        {f.facility_type}
                       </span>
-                      <span className="text-gray-400 shrink-0">{f.distance_m}m</span>
+                      <span className="ml-auto shrink-0 tabular-nums text-slate-400">{f.distance_m}m</span>
                     </li>
                   ))}
                 </ul>

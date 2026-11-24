@@ -33,31 +33,41 @@ export default function App() {
   }
 
   return (
-    <div>
-      <nav className="flex justify-between items-center p-4 border-b">
-        <span className="text-xl font-bold">동네 진단</span>
-        {view === "main" ? (
-          <button
-            onClick={openPasswordPrompt}
-            className="px-3 py-1.5 rounded-lg text-sm bg-gray-100"
-          >
-            관리자
-          </button>
-        ) : (
-          <button
-            onClick={() => setView("main")}
-            className="px-3 py-1.5 rounded-lg text-sm bg-gray-100"
-          >
-            메인으로
-          </button>
-        )}
+    <div className="min-h-screen bg-white">
+      <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
+                <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" />
+              </svg>
+            </span>
+            <span className="text-lg font-bold tracking-tight">동네 진단</span>
+            <span className="hidden text-sm text-slate-400 sm:inline">부산 사상구 정주여건 진단</span>
+          </div>
+          {view === "main" ? (
+            <button
+              onClick={openPasswordPrompt}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+            >
+              관리자
+            </button>
+          ) : (
+            <button
+              onClick={() => setView("main")}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+            >
+              메인으로
+            </button>
+          )}
+        </div>
       </nav>
 
       {showPasswordPrompt && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
           <form
             onSubmit={handleAdminSubmit}
-            className="bg-white rounded-lg p-6 w-80 space-y-3 shadow-xl"
+            className="w-80 space-y-4 rounded-2xl bg-white p-6 shadow-xl"
           >
             <h2 className="font-semibold">관리자 암호 입력</h2>
             <input
@@ -65,21 +75,21 @@ export default function App() {
               autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
               placeholder="암호를 입력하세요"
             />
-            {passwordError && <p className="text-red-600 text-sm">{passwordError}</p>}
-            <div className="flex gap-2 justify-end">
+            {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+            <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setShowPasswordPrompt(false)}
-                className="px-3 py-1.5 rounded-lg text-sm bg-gray-100"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
               >
                 취소
               </button>
               <button
                 type="submit"
-                className="px-3 py-1.5 rounded-lg text-sm bg-blue-600 text-white"
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
               >
                 확인
               </button>
@@ -91,10 +101,10 @@ export default function App() {
       {view === "admin" ? (
         <AdminPage />
       ) : (
-        <div className="max-w-5xl mx-auto p-4 space-y-4">
+        <main className="mx-auto max-w-5xl space-y-5 px-4 py-6">
           <ReportPage onLocate={setFocusPoint} />
           <SafetyMapPage persona={persona} onPersonaChange={setPersona} focusPoint={focusPoint} />
-        </div>
+        </main>
       )}
     </div>
   );

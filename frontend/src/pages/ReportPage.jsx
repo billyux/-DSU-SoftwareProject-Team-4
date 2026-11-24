@@ -24,10 +24,12 @@ export default function ReportPage({ onLocate } = {}) {
     <div className="max-w-2xl mx-auto space-y-3">
       <SearchBar onSearch={handleSearch} />
 
-      {loading && <p className="text-sm text-gray-500 text-center">위치 찾는 중...</p>}
-      {error && <p className="text-red-600 text-center">{error}</p>}
+      {loading && <p className="text-center text-sm text-slate-500">위치 찾는 중...</p>}
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-center text-sm text-red-700">{error}</p>
+      )}
 
-      <p className="text-sm text-gray-500 text-center">
+      <p className="text-center text-sm leading-relaxed text-slate-500">
         주소를 검색하거나 아래 지도를 클릭해 지점을 고른 뒤, 지도 오른쪽의 "정주여건 계산" 버튼을 누르면
         점수와 주변 시설이 지도 밑에 표시됩니다.
       </p>
